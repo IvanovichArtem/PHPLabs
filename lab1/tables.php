@@ -34,22 +34,29 @@ $message = "";
 $table = "";
 $primaryKey = "";
 
-if (isset($_POST['table'])) {
-    $table = $_POST['table'];
 
-    if ($table === "") {
-        $message = "Пожалуйста, выберите таблицу.";
-    } else {
-        $dataResult = $conn->query("SELECT * FROM `$table`");
-        if ($dataResult) {
-            $fields = $dataResult->fetch_fields();
-            $primaryKey = $fields[0]->name;
-            while ($row = $dataResult->fetch_assoc()) {
-                $data[] = $row;
-            }
+if (isset($_POST['table'])) {
+    try {
+
+        $table = $_POST['table'];
+        if ($table === "") {
+            $message = "Пожалуйста, выберите таблицу.";
         } else {
-            $message = "Ошибка запроса данных: " . $conn->error;
+            $dataResult = $conn->query("SELECT * FROM `$table`");
+            if ($dataResult) {
+                $fields = $dataResult->fetch_fields();
+                $primaryKey = $fields[0]->name;
+                while ($row = $dataResult->fetch_assoc()) {
+                    $data[] = $row;
+                }
+            } else {
+                $message = "Ошибка запроса данных: " . $conn->error;
+            }
         }
+    } catch (mysqli_sql_exception $e) {
+        $message = "" . $e->getMessage();
+    } catch (Exception $e) {
+        $message = "" . $e->getMessage();
     }
 }
 
@@ -90,41 +97,20 @@ if (isset($_POST['create'])) {
 
 // Обновление записи
 if (isset($_POST['update'])) {
-    $setClause = [];
-    foreach ($_POST['data'] as $column => $value) {
-        if ($column !== 'id') {
-            $setClause[] = "$column = '" . $conn->real_escape_string($value) . "'";
-        }
-    }
-    $id = $_POST['id'];
-    $sql = "UPDATE `$table` SET " . implode(", ", $setClause) . " WHERE `$primaryKey` = $id";
-
-    if ($conn->query($sql) === TRUE) {
-        $message = "Запись успешно обновлена.";
-        // Запрос для обновления данных после добавления записи
-        $dataResult = $conn->query("SELECT * FROM `$table`");
-        if ($dataResult) {
-            $data = [];
-            while ($row = $dataResult->fetch_assoc()) {
-                $data[] = $row;
+    $message = $table;
+    try {
+        $setClause = [];
+        foreach ($_POST['data'] as $column => $value) {
+            if ($column !== 'id') {
+                $setClause[] = "$column = '" . $conn->real_escape_string($value) . "'";
             }
-        } else {
-            $message = "Ошибка обновления данных: " . $conn->error;
         }
-    } else {
-        $message = "Ошибка обновления записи: " . $conn->error;
-    }
-}
+        $id = $_POST['id'];
+        $sql = "UPDATE `$table` SET " . implode(", ", $setClause) . " WHERE `$primaryKey` = $id";
 
-// Удаление записи
-if (isset($_POST['delete'])) {
-    // TODO: добавить try catch
-    if (isset($_POST['id']) && !empty($_POST['id'])) {
-        $id = intval($_POST['id']); // Приведение к целочисленному типу
-        $sql = "DELETE FROM `$table` WHERE `$primaryKey` = $id";
         if ($conn->query($sql) === TRUE) {
-            $message = "Запись успешно удалена.";
-            // Запрос для обновления данных после удаления записи
+            $message = "Запись успешно обновлена.";
+            // Запрос для обновления данных после добавления записи
             $dataResult = $conn->query("SELECT * FROM `$table`");
             if ($dataResult) {
                 $data = [];
@@ -135,10 +121,43 @@ if (isset($_POST['delete'])) {
                 $message = "Ошибка обновления данных: " . $conn->error;
             }
         } else {
-            $message = "Ошибка удаления записи: " . $conn->error;
+            $message = "Ошибка обновления записи: " . $conn->error;
         }
-    } else {
-        $message = "Ошибка: идентификатор записи отсутствует.";
+    } catch (mysqli_sql_exception $e) {
+        $message = $e->getMessage() . ". Maybe it's renamed or deleted!";
+    } catch (Exception $e) {
+        $message = $e->getMessage();
+    }
+}
+
+// Удаление записи
+if (isset($_POST['delete'])) {
+    try {
+        if (isset($_POST['id']) && !empty($_POST['id'])) {
+            $id = intval($_POST['id']); // Приведение к целочисленному типу
+            $sql = "DELETE FROM `$table` WHERE `$primaryKey` = $id";
+            if ($conn->query($sql) === TRUE) {
+                $message = "Запись успешно удалена.";
+                // Запрос для обновления данных после удаления записи
+                $dataResult = $conn->query("SELECT * FROM `$table`");
+                if ($dataResult) {
+                    $data = [];
+                    while ($row = $dataResult->fetch_assoc()) {
+                        $data[] = $row;
+                    }
+                } else {
+                    $message = "Ошибка обновления данных: " . $conn->error;
+                }
+            } else {
+                $message = "Ошибка удаления записи: " . $conn->error;
+            }
+        } else {
+            $message = "Ошибка: идентификатор записи отсутствует.";
+        }
+    } catch (mysqli_sql_exception $e) {
+        $message = "" . $e->getMessage();
+    } catch (Exception $e) {
+        $message = "" . $e->getMessage();
     }
 }
 
@@ -187,8 +206,8 @@ $conn->close();
     <form method="POST">
         <select name="table">
             <option value="">-- Выберите таблицу --</option>
-            <?php foreach ($tables as $table): ?>
-                <option value="<?= htmlspecialchars($table) ?>"><?= htmlspecialchars($table) ?></option>
+            <?php foreach ($tables as $mtable): ?>
+                <option value="<?= htmlspecialchars($mtable) ?>"><?= htmlspecialchars($mtable) ?></option>
             <?php endforeach; ?>
         </select>
         <button type="submit">Загрузить</button>
@@ -197,7 +216,6 @@ $conn->close();
     <?php if ($message): ?>
         <div class="message"><?= htmlspecialchars($message) ?></div>
     <?php endif; ?>
-
     <?php if (!empty($data)): ?>
         <h2>Данные из таблицы: <?= htmlspecialchars($table) ?></h2>
         <table>
