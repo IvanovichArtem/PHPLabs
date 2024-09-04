@@ -16,7 +16,7 @@ try {
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $name = $_POST['name'];
+    $name = $_POST['username'];
     $email = $_POST['email'];
     $password = $_POST['password'];
 
@@ -25,7 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if (!empty($name) && !empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
         try {
-            $stmt = $conn->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
+            $stmt = $conn->prepare("INSERT INTO users (username, email, password) VALUES (?, ?, ?)");
             $stmt->bind_param('sss', $name, $email, $hashedPassword);
 
             if ($stmt->execute()) {
@@ -57,12 +57,14 @@ $conn->close();
 </head>
 
 <body>
-    <h1>Create New User</h1>
+    <h1>Создать пользователя</h1>
     <form method="post" action="">
-        Name: <input type="text" name="name" required><br>
+        Name: <input type="text" name="username" required><br>
         Email: <input type="email" name="email" required><br>
         Password: <input type="password" name="password" required><br> <input type="submit" value="Submit">
     </form>
+
+    <div> <a href="auth.php">Войти </a> </div>
 </body>
 
 </html>

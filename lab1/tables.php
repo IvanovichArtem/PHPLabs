@@ -1,9 +1,12 @@
 <?php
+session_start();
+
 // Подключение к базе данных
-$servername = "localhost"; // Замените на ваш сервер
-$username = "root";     // Замените на ваше имя пользователя
-$password = "";     // Замените на ваш пароль
-$dbname = "my_database";       // Замените на имя вашей базы данных
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "my_database";
+
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 
@@ -12,17 +15,25 @@ if ($conn->connect_error) {
     die("Ошибка подключения: " . $conn->connect_error);
 }
 
+// Проверка авторизации
+if (!isset($_SESSION['id'])) {
+    header("Location: auth.php");
+    exit();
+}
+
 // Получение списка таблиц
 $tables = [];
-$result = $conn->query("SHOW TABLES");
+$result = $conn->query("SELECT table_name FROM information_schema.tables WHERE table_schema = '$dbname' AND table_name != 'users';");
 while ($row = $result->fetch_array()) {
     $tables[] = $row[0];
 }
 
-// Обработка выбора таблицы
-// Обработка выбора таблицы
+// Обработка выбора таблицы и CRUD операций
 $data = [];
 $message = "";
+$table = "";
+$primaryKey = "";
+
 if (isset($_POST['table'])) {
     $table = $_POST['table'];
 
@@ -30,11 +41,108 @@ if (isset($_POST['table'])) {
         $message = "Пожалуйста, выберите таблицу.";
     } else {
         $dataResult = $conn->query("SELECT * FROM `$table`");
-        while ($row = $dataResult->fetch_assoc()) {
-            $data[] = $row;
+        if ($dataResult) {
+            $fields = $dataResult->fetch_fields();
+            $primaryKey = $fields[0]->name;
+            while ($row = $dataResult->fetch_assoc()) {
+                $data[] = $row;
+            }
+        } else {
+            $message = "Ошибка запроса данных: " . $conn->error;
         }
     }
 }
+
+// Добавление новой записи
+if (isset($_POST['create'])) {
+    try {
+        $columns = array_keys($_POST['data']);
+        $values = array_map([$conn, 'real_escape_string'], array_values($_POST['data']));
+
+        // Удаление id из списка колонок и значений, если он есть
+        if (($key = array_search('id', $columns)) !== false) {
+            unset($columns[$key]);
+            unset($values[$key]);
+        }
+
+        $sql = "INSERT INTO `$table` (" . implode(", ", $columns) . ") VALUES ('" . implode("', '", $values) . "')";
+
+        if ($conn->query($sql) === TRUE) {
+            // Запрос для обновления данных после добавления записи
+            $dataResult = $conn->query("SELECT * FROM `$table`");
+            if ($dataResult) {
+                $data = [];
+                while ($row = $dataResult->fetch_assoc()) {
+                    $data[] = $row;
+                }
+            } else {
+                $message = "Ошибка обновления данных: " . $conn->error;
+            }
+
+            $message = "Новая запись успешно добавлена.";
+        } else {
+            $message = "Ошибка добавления записи: " . $conn->error;
+        }
+    } catch (Exception $e) {
+        $message = $e->getMessage();
+    }
+}
+
+// Обновление записи
+if (isset($_POST['update'])) {
+    $setClause = [];
+    foreach ($_POST['data'] as $column => $value) {
+        if ($column !== 'id') {
+            $setClause[] = "$column = '" . $conn->real_escape_string($value) . "'";
+        }
+    }
+    $id = $_POST['id'];
+    $sql = "UPDATE `$table` SET " . implode(", ", $setClause) . " WHERE `$primaryKey` = $id";
+
+    if ($conn->query($sql) === TRUE) {
+        $message = "Запись успешно обновлена.";
+        // Запрос для обновления данных после добавления записи
+        $dataResult = $conn->query("SELECT * FROM `$table`");
+        if ($dataResult) {
+            $data = [];
+            while ($row = $dataResult->fetch_assoc()) {
+                $data[] = $row;
+            }
+        } else {
+            $message = "Ошибка обновления данных: " . $conn->error;
+        }
+    } else {
+        $message = "Ошибка обновления записи: " . $conn->error;
+    }
+}
+
+// Удаление записи
+if (isset($_POST['delete'])) {
+    // TODO: добавить try catch
+    if (isset($_POST['id']) && !empty($_POST['id'])) {
+        $id = intval($_POST['id']); // Приведение к целочисленному типу
+        $sql = "DELETE FROM `$table` WHERE `$primaryKey` = $id";
+        if ($conn->query($sql) === TRUE) {
+            $message = "Запись успешно удалена.";
+            // Запрос для обновления данных после удаления записи
+            $dataResult = $conn->query("SELECT * FROM `$table`");
+            if ($dataResult) {
+                $data = [];
+                while ($row = $dataResult->fetch_assoc()) {
+                    $data[] = $row;
+                }
+            } else {
+                $message = "Ошибка обновления данных: " . $conn->error;
+            }
+        } else {
+            $message = "Ошибка удаления записи: " . $conn->error;
+        }
+    } else {
+        $message = "Ошибка: идентификатор записи отсутствует.";
+    }
+}
+
+
 
 $conn->close();
 ?>
@@ -45,7 +153,7 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Выбор таблицы</title>
+    <title>CRUD операции</title>
     <style>
         table {
             width: 100%;
@@ -66,6 +174,10 @@ $conn->close();
         .message {
             color: red;
         }
+
+        .success {
+            color: green;
+        }
     </style>
 </head>
 
@@ -84,27 +196,70 @@ $conn->close();
 
     <?php if ($message): ?>
         <div class="message"><?= htmlspecialchars($message) ?></div>
-    <?php elseif (!empty($data)): ?>
+    <?php endif; ?>
+
+    <?php if (!empty($data)): ?>
         <h2>Данные из таблицы: <?= htmlspecialchars($table) ?></h2>
         <table>
             <thead>
                 <tr>
                     <?php foreach ($data[0] as $key => $value): ?>
-                        <th><?= htmlspecialchars($key) ?></th>
+                        <?php if ($key !== 'id'): ?>
+                            <th><?= htmlspecialchars($key) ?></th>
+                        <?php endif; ?>
                     <?php endforeach; ?>
+                    <th>Действия</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($data as $row): ?>
                     <tr>
-                        <?php foreach ($row as $cell): ?>
-                            <td><?= htmlspecialchars($cell) ?></td>
-                        <?php endforeach; ?>
+                        <form method="POST">
+
+                            <?php foreach ($row as $key => $cell): ?>
+                                <?php if (strpos($key, '_id') !== false): ?>
+                                    <td><input type="text" disabled name="data[<?= htmlspecialchars($key) ?>]"
+                                            value="<?= htmlspecialchars($cell) ?>"></td>
+                                <?php else: ?>
+                                    <!-- Обычные текстовые поля для других данных -->
+                                    <td><input type="text" name="data[<?= htmlspecialchars($key) ?>]"
+                                            value="<?= htmlspecialchars($cell) ?>"></td>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                            <td>
+                                <input type="hidden" name="table" value="<?= htmlspecialchars($table) ?>">
+                                <input type="hidden" name="id" value="<?= htmlspecialchars($row[$primaryKey]) ?>">
+                                <button type="submit" name="update">Обновить</button>
+                                <button type="submit" name="delete">Удалить</button>
+                            </td>
+                        </form>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
+
+
+
         </table>
+
+        <h2>Добавить новую запись</h2>
+        <form method="POST">
+            <?php
+            $columns = array_keys($data[0]);
+            $columns = array_slice($columns, 1); // Удаляем первый элемент из массива ключей
+            ?>
+
+            <?php foreach ($columns as $column): ?>
+                <label><?= htmlspecialchars($column) ?>:</label>
+                <input type="text" name="data[<?= htmlspecialchars($column) ?>]" value=""><br>
+            <?php endforeach; ?>
+
+            <input type="hidden" name="table" value="<?= htmlspecialchars($table) ?>">
+            <button type="submit" name="create">Создать</button>
+        </form>
+
     <?php endif; ?>
+
+    <div><a href="logout.php">Выйти</a></div>
 
 </body>
 
