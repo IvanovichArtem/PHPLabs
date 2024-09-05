@@ -43,11 +43,18 @@ try {
 
 } catch(PDOException $e) {
     echo "Ошибка БД: " . $e->getMessage();
+ 
+
 }
 
 // Функция для добавления, редактирования и удаления записи
 function manageRecord($pdo, $table, $action, $data = [], $id = null) {
+    
     try {
+        if ($table == 'users'){
+            echo "НЕЛЬЗЯ";
+            exit;
+        }
         if ($action == 'add') {
             $keys = array_keys($data);
             $fields = implode(', ', $keys);
@@ -65,10 +72,13 @@ function manageRecord($pdo, $table, $action, $data = [], $id = null) {
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$id]);
         }
-    } catch (PDOException $e) {
-        echo "Ошибка базы данных при выполнении действия: " . $e->getMessage();
+    } catch (mysqli_sql_exception $ex){
+        echo "Ошибка базы данных при выполнении действия: " . $ex->getMessage();
         exit;
+    }catch (Exception $ex){
+        echo "Ошибка выполнения " . $ex->getMessage(); 
     }
+    
 }
 
 // Поиск данных
@@ -76,39 +86,75 @@ $search = $_GET['search'] ?? '';
 
 // Сортировка данных
 $sort_column = $_GET['sort_column'] ?? 'id';
-$sort_order = $_GET['sort_order'] ?? 'ASC'; // Значения могут быть ASC или DESC
+$sort_order = $_GET['sort_order'] ?? 'ASC'; 
 
 // Обработка формы добавления записи
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_record'])) {
-    $data = [];
-    foreach ($columns as $column) {
-        if ($column != 'id' && isset($_POST[$column])) {
-            $data[$column] = $_POST[$column];
+
+    try{
+
+        $data = [];
+        foreach ($columns as $column) {
+            if ($column != 'id' && isset($_POST[$column])) {
+                $data[$column] = $_POST[$column];
+            }
         }
+        manageRecord($pdo, $selected_table, 'add', $data);
+
+    }catch (mysqli_sql_exception $ex){
+        echo "Ошибка базы данных при выполнении действия: " . $ex->getMessage();
+    exit;
+    } catch(Exception $ex){
+        echo "Ошибка выполнения " . $ex->getMessage(); 
+        exit;
     }
-    manageRecord($pdo, $selected_table, 'add', $data);
 }
 
 // Обработка удаления записи
+
 if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
-    $id = $_GET['delete'];
-    manageRecord($pdo, $selected_table, 'delete', [], $id);
+
+    try{
+
+        $id = $_GET['delete'];
+        manageRecord($pdo, $selected_table, 'delete', [], $id);
+    }catch(mysqli_sql_exception $ex){
+        echo "Ошибка базы данных при выполнении действия: " . $ex->getMessage();
+    exit;
+    }catch (Exception $ex){
+        echo "Ошибка выполнения " . $ex->getMessage(); 
+        exit;
+    }
 }
 
 // Обработка редактирования записи
 if (isset($_POST['edit_record']) && is_numeric($_POST['id'])) {
-    $id = $_POST['id'];
-    $data = [];
-    foreach ($columns as $column) {
-        if ($column != 'id' && isset($_POST[$column])) {
-            $data[$column] = $_POST[$column];
+    try{
+
+        $id = $_POST['id'];
+        $data = [];
+        foreach ($columns as $column) {
+            if ($column != 'id' && isset($_POST[$column])) {
+                $data[$column] = $_POST[$column];
+            }
         }
-    }
-    manageRecord($pdo, $selected_table, 'edit', $data, $id);
+        manageRecord($pdo, $selected_table, 'edit', $data, $id);
+}catch (mysqli_sql_exception $ex){
+    echo "Ошибка базы данных при выполнении действия: " . $ex->getMessage();
+    exit;
+}catch (Exception $ex){
+    echo "Ошибка выполнения " . $ex->getMessage(); 
+        exit;
+}
+
 }
 
 // Получаем данные из выбранной таблицы с учетом поиска и сортировки
 try {
+    if ($selected_table == 'users'){
+            echo "НЕЛЬЗЯ";
+            exit;
+        }
     $sql = "SELECT * FROM $selected_table";
     if ($search) {
         $search_conditions = implode(' OR ', array_map(function($col) {
@@ -128,15 +174,30 @@ try {
 
     $data = $data_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Получаем список авторов для формы добавления книги, если выбрана таблица books
-    if ($selected_table == 'books') {
-        $authors_stmt = $pdo->query("SELECT * FROM authors");
-        $authors = $authors_stmt->fetchAll(PDO::FETCH_ASSOC);
+// Проверяем наличие внешних ключей в выбранной таблице
+$related_data = [];
+if (!empty($foreign_keys)) {
+    foreach ($foreign_keys as $foreign_key) {
+        // Получаем связанные данные из внешних таблиц
+        $referenced_table = $foreign_key['REFERENCED_TABLE_NAME'];
+        $referenced_column = $foreign_key['REFERENCED_COLUMN_NAME'];
+
+        // Получаем все данные из внешней таблицы (например, authors)
+        $stmt = $pdo->query("SELECT $referenced_column, name FROM $referenced_table");
+        $related_data[$foreign_key['COLUMN_NAME']] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+}
+
 
 } catch(PDOException $e) {
     echo "Ошибка базы данных при выполнении действия: " . $e->getMessage();
     exit;
+} catch(mysqli_sql_exception $e){
+    echo "Ошибка базы данных при выполнении действия: " . $e->getMessage();
+    exit;
+} catch(Exception $e){
+echo "Ошибка выполнения " . $e->getMessage(); 
+        exit;
 }
 ?>
 
@@ -144,84 +205,99 @@ try {
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Управление таблицами</title>
+    <!-- Подключение Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-<h2>Добро пожаловать!</h2>
-<a href="logout.php">Выйти</a>
+<body class="container mt-5">
+<h2 class="text-center mb-4">Добро пожаловать!</h2>
+<div class="d-flex justify-content-end mb-4">
+    <a href="logout.php" class="btn btn-danger">Выйти</a>
+</div>
 
 <h3>Выберите таблицу:</h3>
-<form method="get">
-    <select name="table" onchange="this.form.submit()">
+<form method="get" class="mb-4">
+    <select name="table" class="form-select w-50" onchange="this.form.submit()">
         <?php foreach ($tables as $table): ?>
-            <option value="<?= $table ?>" <?= $selected_table == $table ? 'selected' : '' ?>><?= ucfirst($table) ?></option>
+            <option value="<?= $table ?>" <?= $selected_table == $table ? 'selected' : '' ?>>
+                <?= ucfirst($table) ?>
+            </option>
         <?php endforeach; ?>
     </select>
 </form>
 
 <h3>Поиск по таблице <?= ucfirst($selected_table) ?>:</h3>
-<form method="get">
+<form method="get" class="mb-4">
     <input type="hidden" name="table" value="<?= $selected_table ?>">
-    <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Введите запрос">
-    <button type="submit">Найти</button>
+    <div class="input-group w-50">
+        <input type="text" name="search" class="form-control" value="<?= htmlspecialchars($search) ?>" placeholder="Введите запрос">
+        <button type="submit" class="btn btn-primary">Найти</button>
+    </div>
 </form>
 
 <h3>Данные таблицы <?= ucfirst($selected_table) ?>:</h3>
-<table border="1">
-    <tr>
-        <?php foreach ($columns as $column): ?>
-            <th>
-                <a href="?table=<?= $selected_table ?>&search=<?= htmlspecialchars($search) ?>&sort_column=<?= $column ?>&sort_order=<?= $sort_order === 'ASC' ? 'DESC' : 'ASC' ?>">
-                    <?= $column ?>
-                </a>
-            </th>
-        <?php endforeach; ?>
-        <th>Действия</th>
-    </tr>
-    <?php foreach ($data as $row): ?>
+<table class="table table-bordered">
+    <thead>
         <tr>
-            <form method="post">
-                <?php foreach ($row as $key => $value): ?>
-                    <td>
-                        <?php if ($key == 'id'): ?>
-                            <?= htmlspecialchars($value) ?>
-                            <input type="hidden" name="id" value="<?= $value ?>">
-                        <?php else: ?>
-                            <input type="text" name="<?= $key ?>" value="<?= htmlspecialchars($value) ?>">
-                        <?php endif; ?>
-                    </td>
-                <?php endforeach; ?>
-                <td>
-                    <button type="submit" name="edit_record">Изменить</button>
-                    <a href="?table=<?= $selected_table ?>&delete=<?= $row['id'] ?>">Удалить</a>
-                </td>
-            </form>
+            <?php foreach ($columns as $column): ?>
+                <th>
+                    <a href="?table=<?= $selected_table ?>&search=<?= htmlspecialchars($search) ?>&sort_column=<?= $column ?>&sort_order=<?= $sort_order === 'ASC' ? 'DESC' : 'ASC' ?>" class="text-decoration-none">
+                        <?= $column ?>
+                    </a>
+                </th>
+            <?php endforeach; ?>
+            <th>Действия</th>
         </tr>
-    <?php endforeach; ?>
+    </thead>
+    <tbody>
+        <?php foreach ($data as $row): ?>
+            <tr>
+                <form method="post">
+                    <?php foreach ($row as $key => $value): ?>
+                        <td>
+                            <?php if ($key == 'id'): ?>
+                                <?= htmlspecialchars($value) ?>
+                                <input type="hidden" name="id" value="<?= $value ?>">
+                            <?php else: ?>
+                                <input type="text" name="<?= $key ?>" class="form-control" value="<?= htmlspecialchars($value) ?>">
+                            <?php endif; ?>
+                        </td>
+                    <?php endforeach; ?>
+                    <td class="text-center">
+                        <button type="submit" name="edit_record" class="btn btn-warning">Изменить</button>
+                        <a href="?table=<?= $selected_table ?>&delete=<?= $row['id'] ?>" class="btn btn-danger">Удалить</a>
+                    </td>
+                </form>
+            </tr>
+        <?php endforeach; ?>
+    </tbody>
 </table>
 
 <h3>Добавить новую запись:</h3>
 <form method="post">
-    <?php foreach ($columns as $column): ?>
-        <?php if ($column != 'id'): ?>
-            <label><?= $column ?>:</label><br>
-            <?php if (in_array($column, $foreign_columns)): ?>
-                <!-- Если поле является внешним ключом, генерируем выпадающий список -->
-                <select name="<?= $column ?>" required>
-                    <?php foreach ($foreign_data[$column] as $option): ?>
-                        <option value="<?= $option[$foreign_keys[array_search($column, $foreign_columns)]['REFERENCED_COLUMN_NAME']] ?>">
-                            <?= $option['name'] ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select><br><br>
-            <?php else: ?>
-                <!-- Обычное текстовое поле для других данных -->
-                <input type="text" name="<?= $column ?>" required><br><br>
+    <div class="mb-3">
+        <?php foreach ($columns as $column): ?>
+            <?php if ($column != 'id'): ?>
+                <label class="form-label"><?= $column ?>:</label>
+                <?php if (in_array($column, $foreign_columns)): ?>
+                    <select name="<?= $column ?>" class="form-select mb-3" required>
+                        <?php foreach ($foreign_data[$column] as $option): ?>
+                            <option value="<?= $option[$foreign_keys[array_search($column, $foreign_columns)]['REFERENCED_COLUMN_NAME']] ?>">
+                                <?= $option['name'] ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php else: ?>
+                    <input type="text" name="<?= $column ?>" class="form-control mb-3" required>
+                <?php endif; ?>
             <?php endif; ?>
-        <?php endif; ?>
-    <?php endforeach; ?>
-    <button type="submit" name="add_record">Добавить запись</button>
+        <?php endforeach; ?>
+    </div>
+    <button type="submit" name="add_record" class="btn btn-success">Добавить запись</button>
 </form>
 
+<!-- Подключение Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
