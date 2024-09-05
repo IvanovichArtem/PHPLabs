@@ -14,13 +14,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = "Пароли не совпадают.";
     } else {
         $hash_password = password_hash($password, PASSWORD_BCRYPT);
+        try{
 
-        $stmt = $pdo->prepare("INSERT INTO users (email, password) VALUES (?, ?)");
-        if ($stmt->execute([$email, $hash_password])) {
-            header("Location: index.php");
-            exit;
-        } else {
-            $error = "Ошибка при регистрации.";
+            $stmt = $pdo->prepare("INSERT INTO users (email, password) VALUES (?, ?)");
+            if ($stmt->execute([$email, $hash_password])) {
+                header("Location: index.php");
+                exit;
+            } else {
+                $error = "Ошибка при регистрации.";
+            }
+        }catch(PDOException $e){
+            $error = "Ощибка БД: " . $e->getMessage();
         }
     }
 }
