@@ -7,9 +7,8 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Получаем список таблиц кроме таблицы users
-try{
-    
+try {
+    // Получаем список таблиц кроме таблицы users
     $tables_stmt = $pdo->query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'bookstore' AND table_name != 'users'");
     $tables = $tables_stmt->fetchAll(PDO::FETCH_COLUMN);
     $selected_table = $_GET['table'] ?? $tables[0];  // Дефолтная таблица
@@ -41,16 +40,14 @@ try{
         $stmt = $pdo->query("SELECT $referenced_column, name FROM $referenced_table");
         $foreign_data[$foreign_key['COLUMN_NAME']] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-    
 
-} catch(PDOException $e){
-    echo "Ошибка БД : ". $e->getMessage();
+} catch(PDOException $e) {
+    echo "Ошибка БД: " . $e->getMessage();
 }
 
 // Функция для добавления, редактирования и удаления записи
 function manageRecord($pdo, $table, $action, $data = [], $id = null) {
-    try{
-
+    try {
         if ($action == 'add') {
             $keys = array_keys($data);
             $fields = implode(', ', $keys);
@@ -68,11 +65,18 @@ function manageRecord($pdo, $table, $action, $data = [], $id = null) {
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$id]);
         }
-    }catch (PDOException $e){
+    } catch (PDOException $e) {
         echo "Ошибка базы данных при выполнении действия: " . $e->getMessage();
         exit;
     }
 }
+
+// Поиск данных
+$search = $_GET['search'] ?? '';
+
+// Сортировка данных
+$sort_column = $_GET['sort_column'] ?? 'id';
+$sort_order = $_GET['sort_order'] ?? 'ASC'; // Значения могут быть ASC или DESC
 
 // Обработка формы добавления записи
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_record'])) {
@@ -103,21 +107,36 @@ if (isset($_POST['edit_record']) && is_numeric($_POST['id'])) {
     manageRecord($pdo, $selected_table, 'edit', $data, $id);
 }
 
-// Получаем данные из выбранной таблицы
-try{
+// Получаем данные из выбранной таблицы с учетом поиска и сортировки
+try {
+    $sql = "SELECT * FROM $selected_table";
+    if ($search) {
+        $search_conditions = implode(' OR ', array_map(function($col) {
+            return "$col LIKE ?";
+        }, $columns));
+        $sql .= " WHERE $search_conditions";
+    }
+    $sql .= " ORDER BY $sort_column $sort_order";
 
-    $data_stmt = $pdo->query("SELECT * FROM $selected_table");
+    $data_stmt = $pdo->prepare($sql);
+    if ($search) {
+        $search_values = array_fill(0, count($columns), "%$search%");
+        $data_stmt->execute($search_values);
+    } else {
+        $data_stmt->execute();
+    }
+
     $data = $data_stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     // Получаем список авторов для формы добавления книги, если выбрана таблица books
     if ($selected_table == 'books') {
         $authors_stmt = $pdo->query("SELECT * FROM authors");
         $authors = $authors_stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-}catch(PDOException $e){
+} catch(PDOException $e) {
     echo "Ошибка базы данных при выполнении действия: " . $e->getMessage();
-        exit;
+    exit;
 }
 ?>
 
@@ -140,11 +159,22 @@ try{
     </select>
 </form>
 
+<h3>Поиск по таблице <?= ucfirst($selected_table) ?>:</h3>
+<form method="get">
+    <input type="hidden" name="table" value="<?= $selected_table ?>">
+    <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Введите запрос">
+    <button type="submit">Найти</button>
+</form>
+
 <h3>Данные таблицы <?= ucfirst($selected_table) ?>:</h3>
 <table border="1">
     <tr>
         <?php foreach ($columns as $column): ?>
-            <th><?= $column ?></th>
+            <th>
+                <a href="?table=<?= $selected_table ?>&search=<?= htmlspecialchars($search) ?>&sort_column=<?= $column ?>&sort_order=<?= $sort_order === 'ASC' ? 'DESC' : 'ASC' ?>">
+                    <?= $column ?>
+                </a>
+            </th>
         <?php endforeach; ?>
         <th>Действия</th>
     </tr>
@@ -192,7 +222,6 @@ try{
     <?php endforeach; ?>
     <button type="submit" name="add_record">Добавить запись</button>
 </form>
-
 
 </body>
 </html>
