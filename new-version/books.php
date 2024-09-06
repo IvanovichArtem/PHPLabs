@@ -163,7 +163,7 @@ try {
         $sql .= " WHERE $search_conditions";
     }
     $sql .= " ORDER BY $sort_column $sort_order";
-
+        echo $sql;
     $data_stmt = $pdo->prepare($sql);
     if ($search) {
         $search_values = array_fill(0, count($columns), "%$search%");

@@ -24,26 +24,37 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Авторизация</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-<h2>Авторизация</h2>
-<?php if (!empty($error)): ?>
-    <p style="color:red;"><?= $error ?></p>
-<?php endif; ?>
-<form method="post">
-    <label>Email:</label><br>
-    <input type="email" name="email" required><br><br>
-
-    <label>Пароль:</label><br>
-    <input type="password" name="password" required><br><br>
-
-    <button type="submit">Войти</button>
-</form>
-<p>Нет аккаунта? <a href="register.php">Зарегистрируйтесь</a></p>
+<div class="container mt-5">
+    <h2 class="text-center">Авторизация</h2>
+    <?php if (!empty($error)): ?>
+        <div class="alert alert-danger" role="alert">
+            <?= htmlspecialchars($error) ?>
+        </div>
+    <?php endif; ?>
+    <form method="post" class="mt-4">
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" class="form-control" id="email" name="email" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Пароль:</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Войти</button>
+    </form>
+    <p class="text-center mt-3">Нет аккаунта? <a href="register.php">Зарегистрируйтесь</a></p>
+</div>
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
