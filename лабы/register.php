@@ -14,13 +14,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } else {
         $hash_password = password_hash($password, PASSWORD_BCRYPT);
         try {
-            $stmt = $pdo->prepare("INSERT INTO user (email, password) VALUES (?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO user (email, password, allowed_tables) VALUES (?, ?, JSON_ARRAY())");
             if ($stmt->execute([$email, $hash_password])) {
                 header("Location: index.php");
                 exit;
             } else {
                 $error = "Ошибка при регистрации.";
             }
+
         } catch (PDOException $e) {
             $error = "Ошибка БД: " . $e->getMessage();
         }
