@@ -95,8 +95,12 @@ function manageRecord($pdo, $table, $action, $data = [], $id = null)
         if ($action == 'add') {
             $keys = array_keys($data);
             $fields = implode(', ', $keys);
+            if (!$is_superuser) {
+                $fields .= ', user_id';
+            }
             $placeholders = implode(', ', array_fill(0, count($data), '?'));
-            $sql = "INSERT INTO $table ($fields) VALUES ($placeholders)";
+            $user_id = $_SESSION['user_id'];
+            $sql = "INSERT INTO $table ($fields) VALUES ($placeholders, $user_id)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute(array_values($data));
         } elseif ($action == 'edit' && $id !== null) {
