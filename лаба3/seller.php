@@ -29,11 +29,11 @@ function fetchProducts($pdo)
     }
 }
 
-function addProduct($name, $description, $price, $quantity, $pdo)
+function addProduct($name, $description, $price, $quantity, $sellerId, $pdo)
 {
     try {
-        $stmt = $pdo->prepare("INSERT INTO products (name, description, price, quantity) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$name, $description, $price, $quantity]);
+        $stmt = $pdo->prepare("INSERT INTO products (name, description, price, quantity, seller_id) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$name, $description, $price, $quantity, $sellerId]);
         return "Товар успешно добавлен!";
     } catch (PDOException $e) {
         return "Ошибка при добавлении товара: " . $e->getMessage();
@@ -41,6 +41,7 @@ function addProduct($name, $description, $price, $quantity, $pdo)
         return "" . $e->getMessage();
     }
 }
+
 
 function updateProduct($id, $name, $description, $price, $quantity, $pdo)
 {
@@ -76,7 +77,7 @@ $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_product'])) {
         // Add new product
-        $message = addProduct($_POST['name'], $_POST['description'], $_POST['price'], $_POST['quantity'], $pdo);
+        $message = addProduct($_POST['name'], $_POST['description'], $_POST['price'], $_POST['quantity'], $_POST['seller_id'], $pdo);
     } elseif (isset($_POST['update_product'])) {
         // Update product
         $message = updateProduct($_POST['id'], $_POST['name'], $_POST['description'], $_POST['price'], $_POST['quantity'], $pdo);
@@ -85,6 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = deleteProduct($_POST['id'], $pdo);
     }
 }
+
 
 $products = fetchProducts($pdo);
 ?>
