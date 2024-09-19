@@ -5,7 +5,9 @@ session_start();
 function isLoggedIn()
 {
     if ($_SESSION['role'] == 'buyer') {
-        echo "Нельзя зайти";
+        echo '<div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+        <h1>У вас нету доступа к данной странице</h1>
+      </div>';
         exit;
     }
     return isset($_SESSION['user_id']);
@@ -20,20 +22,21 @@ function redirectToLogin()
 function fetchProducts($pdo)
 {
     try {
-        $stmt = $pdo->query("SELECT id, name, description, price, quantity FROM products");
+        $stmt = $pdo->prepare("SELECT id, name, description, price, quantity,seller_id FROM products WHERE seller_id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        return "Ошибка при получении данных о товарах: " . $e->getMessage();
+        return "Нету товаров или ошибка";
     } catch (Exception $e) {
         return "" . $e->getMessage();
     }
 }
 
-function addProduct($name, $description, $price, $quantity, $pdo)
+function addProduct($name, $description, $price, $quantity, $sellerId, $pdo)
 {
     try {
-        $stmt = $pdo->prepare("INSERT INTO products (name, description, price, quantity) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$name, $description, $price, $quantity]);
+        $stmt = $pdo->prepare("INSERT INTO products (name, description, price, quantity, seller_id) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$name, $description, $price, $quantity, $sellerId]);
         return "Товар успешно добавлен!";
     } catch (PDOException $e) {
         return "Ошибка при добавлении товара: " . $e->getMessage();
@@ -76,7 +79,7 @@ $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_product'])) {
         // Add new product
-        $message = addProduct($_POST['name'], $_POST['description'], $_POST['price'], $_POST['quantity'], $pdo);
+        $message = addProduct($_POST['name'], $_POST['description'], $_POST['price'], $_POST['quantity'], $_SESSION['user_id'], $pdo);
     } elseif (isset($_POST['update_product'])) {
         // Update product
         $message = updateProduct($_POST['id'], $_POST['name'], $_POST['description'], $_POST['price'], $_POST['quantity'], $pdo);
@@ -172,13 +175,14 @@ $products = fetchProducts($pdo);
                                         <div class="form-group">
                                             <label for="price">Цена</label>
                                             <input type="number" class="form-control" id="price" name="price"
-                                                value="<?= htmlspecialchars($product['price']) ?>" step="0.01" required,
-                                                min="0.01">
+                                                value="<?= htmlspecialchars($product['price']) ?>" min="1" step="0.01"
+                                                max='10000' required>
                                         </div>
                                         <div class="form-group">
                                             <label for="quantity">Количество</label>
                                             <input type="number" class="form-control" id="quantity" name="quantity"
-                                                value="<?= htmlspecialchars($product['quantity']) ?>" min="0" required>
+                                                value="<?= htmlspecialchars($product['quantity']) ?>" min="1" max="100"
+                                                required>
                                         </div>
                                         <button type="submit" name="update_product" class="btn btn-primary">Обновить</button>
                                     </form>
@@ -203,11 +207,12 @@ $products = fetchProducts($pdo);
             </div>
             <div class="form-group">
                 <label for="price">Цена</label>
-                <input type="number" class="form-control" id="price" name="price" step="0.01" required>
+                <input type="number" class="form-control" id="price" name="price" min="0" step="0.01" max="10000"
+                    required>
             </div>
             <div class="form-group">
                 <label for="quantity">Количество</label>
-                <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                <input type="number" class="form-control" id="quantity" name="quantity" min="1" max='100' required>
             </div>
             <button type="submit" name="add_product" class="btn btn-success">Добавить</button>
         </form>

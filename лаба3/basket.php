@@ -207,13 +207,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                                 <!-- Форма для обновления количества -->
                                 <form method="post" style="display: inline;">
-                                    <input type="hidden" name="action" value="update_quantity">
+                                    <input type="hidden" name="action" value="update_quantity" min="1" max="100">
                                     <input type="hidden" name="product_id" value="<?= htmlspecialchars($item['id']) ?>">
                                     <div class="form-group">
                                         <label for="quantity_<?= htmlspecialchars($item['id']) ?>">Количество:</label>
                                         <input type="number" id="quantity_<?= htmlspecialchars($item['id']) ?>" name="quantity"
-                                            value="<?= htmlspecialchars($item['quantity']) ?>" min="1" class="form-control"
-                                            style="width: auto; display: inline-block;">
+                                            value="<?= htmlspecialchars($item['quantity']) ?>" min="1" max='100'
+                                            class="form-control" style="width: auto; display: inline-block;">
                                     </div>
                                     <button type="submit" class="btn btn-warning">Изменить количество</button>
                                 </form>

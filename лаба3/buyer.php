@@ -5,7 +5,9 @@ session_start();
 function isLoggedIn()
 {
     if ($_SESSION['role'] == 'seller') {
-        echo "Нельзя зайти";
+        echo '<div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+                <h1>У вас нету доступа к данной странице</h1>
+              </div>';
         exit;
     }
     return isset($_SESSION['user_id']);
@@ -99,7 +101,8 @@ $products = fetchProducts($pdo);
                                 <p class="card-text"><strong>Цена:</strong> <?= htmlspecialchars($product['price']) ?> руб.</p>
                                 <form method="post">
                                     <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
-                                    <input class='form-control' type="number" name="quantity" value="1" min="1" max="100">
+                                    <input required class='form-control' type="number" name="quantity" value="1" min="1"
+                                        max="100">
                                     <br>
                                     <button type="submit" class="btn btn-primary">Добавить в корзину</button>
                                 </form>
