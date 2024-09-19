@@ -45,6 +45,7 @@ function addProduct($name, $description, $price, $quantity, $sellerId, $pdo)
     }
 }
 
+
 function updateProduct($id, $name, $description, $price, $quantity, $pdo)
 {
     try {
@@ -79,7 +80,11 @@ $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_product'])) {
         // Add new product
+<<<<<<< HEAD
         $message = addProduct($_POST['name'], $_POST['description'], $_POST['price'], $_POST['quantity'], $_SESSION['user_id'], $pdo);
+=======
+        $message = addProduct($_POST['name'], $_POST['description'], $_POST['price'], $_POST['quantity'], $_POST['seller_id'], $pdo);
+>>>>>>> bb3e64e8051365956def824d197a1ad91e06449d
     } elseif (isset($_POST['update_product'])) {
         // Update product
         $message = updateProduct($_POST['id'], $_POST['name'], $_POST['description'], $_POST['price'], $_POST['quantity'], $pdo);
@@ -88,6 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = deleteProduct($_POST['id'], $pdo);
     }
 }
+
 
 $products = fetchProducts($pdo);
 ?>

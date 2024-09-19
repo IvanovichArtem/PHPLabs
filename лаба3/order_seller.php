@@ -157,8 +157,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <div class="card-body">
                                     <h5 class="card-title"><?= htmlspecialchars($order['name']) ?></h5>
                                     <p class="card-text"><?= htmlspecialchars($order['description']) ?></p>
+<<<<<<< HEAD
                                     <p class="card-text"><strong>Цена:</strong> <?= htmlspecialchars($order['total_price']) ?> руб.
                                     </p>
+=======
+                                    <p class="card-text"><strong>Цена:</strong> <?= htmlspecialchars($order['total_price']) ?> руб.</p>
+>>>>>>> bb3e64e8051365956def824d197a1ad91e06449d
                                     <p class="card-text"><strong>Количество:</strong> <?= htmlspecialchars($order['quantity']) ?>
                                     </p>
                                     <p class="card-text"><strong>Адрес:</strong> <?= htmlspecialchars($order['address']) ?></p>
